@@ -1,12 +1,17 @@
 log:
   level: info
   file: ""
+
 plugin:
-  - tag: main_server    # 启动服务器
+
+  ################# 服务插件 ################
+
+  - tag: main_server      # 启动服务器
     type: server
     args:
-      entry: main_sequence
-      max_concurrent_queries: 0
+      entry:
+        - _default_cache  # 缓存
+        - main_sequence
       server:
         - protocol: udp
           addr: 0.0.0.0:53
@@ -19,31 +24,32 @@ plugin:
     type: sequence
     args:
       exec:
-        - _default_cache
         - if:
-            - query_is_ad_domain    # 处理已知的广告域名
+            - query_is_ad_domain    # 已知的广告域名
           exec:
             - _block_with_nxdomain  # 屏蔽
             - _end
 
         - if:
-            - query_is_local_domain   # 处理已知的本地域名
-            - "!_query_is_common"       # 和不常见的请求类型
+            - query_is_local_domain   # 已知的本地域名
+            - "!_query_is_common"     # 和不常见的请求类型
           exec:
-            - forward_local
+            - forward_local           # 用本地服务器
             - _end
 
         - if:
-            - query_is_non_local_domain  # 处理已知的非本地域名
+            - query_is_non_local_domain  # 已知的非本地域名
           exec:
-            - forward_remote
+            - forward_remote             # 用远程服务器
             - _end
+
+          # 剩下的域名用 IP 分流。
 
         - forward_local               # 先请求转发至本地服务器
         - if:
             - response_has_local_ip   # 如果应答包含本地 IP
           goto: _end                  # 就直接采用结果
-        - forward_remote              # 否则用远程服务器的结果
+        - forward_remote              # 否则去请求远程服务器的结果
 
   - tag: forward_local # 转发至本地服务器的插件
     type: forward
@@ -74,25 +80,22 @@ plugin:
     type: query_matcher
     args:
       domain:
-        - ./geosite.dat:cn
+        - "ext:./geosite.dat:cn"
 
   - tag: query_is_non_local_domain    # 匹配非本地域名的插件
     type: query_matcher
     args:
       domain:
-        - ./geosite.dat:geolocation-!cn
+        - "ext:./geosite.dat:geolocation-!cn"
 
   - tag: query_is_ad_domain           # 匹配广告域名的插件
     type: query_matcher
     args:
       domain:
-        - ./geosite.dat:category-ads-all
+        - "ext:./geosite.dat:category-ads-all"
 
   - tag: response_has_local_ip        # 匹配本地 IP的插件
     type: response_matcher
     args:
       ip:
-        - ./geoip.dat:cn
-        
-
-include: [ ]
+        - "ext:./geoip.dat:cn"

@@ -7,7 +7,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=mosdns
-PKG_VERSION:=1.2.0
+PKG_VERSION:=1.5.0
 PKG_RELEASE:=1
 
 ifeq ($(ARCH),mipsel)
